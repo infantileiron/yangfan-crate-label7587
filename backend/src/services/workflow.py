@@ -21,6 +21,24 @@ def add_run(body, actor):
     return {'id': key, 'state': State.queued.value}
 
 
+def add_rolling_run(body, actor):
+    """Queue a cross-shift rolling batch-holdout analysis with locked parameters."""
+    options = parse_options(body.options)
+    options['mode'] = 'rolling-batch-holdout'
+    now = time.time()
+    with engine.begin() as connection:
+        if fetch_one(connection, datasets, body.dataset_id) is None:
+            raise HTTPException(404, '数据版本不存在。')
+        key = connection.execute(insert(runs).values(dataset_id=body.dataset_id, options=options,
+                    state=State.queued.value, owner=actor, created=now)).inserted_primary_key[0]
+        add_event(connection, actor, 'queue-rolling', key, now)
+    return {'id': key, 'state': State.queued.value}
+
+
+def is_rolling(options) -> bool:
+    return isinstance(options, dict) and options.get('mode') == 'rolling-batch-holdout'
+
+
 def claim_run():
     now = time.time()
     claimable = or_(runs.c.state == State.queued.value, and_(runs.c.state == State.running.value, runs.c.started < now - 120))

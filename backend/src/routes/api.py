@@ -6,10 +6,10 @@ from src.config.settings import ARTIFACTS
 from src.constants.enums import Role
 from src.controllers.query import delivery_status, jobs, recent_activity, require_row, revisions
 from src.models.tables import datasets, runs
-from src.schemas.requests import Delivery, Import, Login, Review, Run
+from src.schemas.requests import Delivery, Import, Login, Review, RollingRun, Run
 from src.services.data import PROFILE, csv_records, save_revision
 from src.services.domain import sample_rows
-from src.services.workflow import add_run, cancel_schedule, review_run, schedule_report
+from src.services.workflow import add_run, add_rolling_run, cancel_schedule, review_run, schedule_report
 from src.utils.exports import write_csv
 from src.utils.security import allowed, authenticate, signed_in
 
@@ -70,6 +70,12 @@ def list_runs(account=Depends(signed_in)):
 @router.post('/runs', status_code=202)
 def queue(body: Run, account=Depends(analyst)):
     return add_run(body, account['username'])
+
+
+@router.post('/rolling-runs', status_code=202)
+def queue_rolling(body: RollingRun, account=Depends(analyst)):
+    """Cross-shift walk-forward pilot; resumes from checkpoints under one lock."""
+    return add_rolling_run(body, account['username'])
 
 
 @router.get('/runs/{key}')
